@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-set(myproject "homework1")
+set(myproject "homework2")
 # Project name
 project(${myproject})
 
@@ -17,7 +17,7 @@ endif()
 
 add_library(lib INTERFACE)
 
-add_executable(${myproject} hw1.cpp)
+add_executable(${myproject} hw.cpp)
 
 target_link_libraries(${myproject} PUBLIC lib)
 
