@@ -1,13 +1,27 @@
+#define _HAS_AUTO_PTR_ETC 1  // https://devblogs.microsoft.com/cppblog/stl-fixes-in-vs-2015-update-3/
+#include <memory>   // also needed for auto_ptr
 #include <iostream>
+
 using namespace std;
 
 
-class Player {
+class Uncopyable {
+    protected:
+        Uncopyable() {}
+        virtual ~Uncopyable() {}
+    private:
+        Uncopyable(const Uncopyable&);
+        Uncopyable& operator = (const Uncopyable&);
+}; 
+
+
+class Player: private Uncopyable {
 private:
     string shirtName; 
     int number;
-    Player(const Player&);              // prevents use of copy-constr and copy assign operator
-    Player& operator=(const Player&);   // also doesn't let the derived classes to use it
+    /* the below is done by class Uncopyable */
+    //Player(const Player&);              // prevents use of copy-constr and copy assign operator
+    //Player& operator=(const Player&);   // also doesn't let the derived classes to use it
 
 public:
     // More efficient way to declare a constructor: member initialization
@@ -35,14 +49,11 @@ public:
 
 
 
-class Puck {
+class Puck : private Uncopyable {
 private:
     int radius, height;
     string colorName;
     void init(const Puck& pck);     // used for copy assign operator
-
-protected:
-    string getColorName() { return colorName; }
 
 public:
     Puck(const int r, const int h, const string& color)
@@ -53,6 +64,9 @@ public:
     ~Puck() { cout << "Deconstructing puck " << getColorName() << ".\n"; }
     Puck(const Puck& pck);
     Puck& operator=(const Puck& pck);
+
+    string getColorName() { return colorName; }
+    void setColorName(const string& color) { this->colorName = color;}
 };
 
 class GiftedPuck : private Puck {
@@ -67,6 +81,9 @@ public:
     ~GiftedPuck() { cout << "Deconstructing gifted puck " << getColorName() << ".\n"; }
     GiftedPuck(const GiftedPuck& pck);
     GiftedPuck& operator=(const GiftedPuck& pck);
+    
+    bool getIsGifted() { return this->isGifted; }
+    void setIsGifted(const bool b) { this->isGifted = b; }
 };
 
 
@@ -118,18 +135,90 @@ GiftedPuck::GiftedPuck(const GiftedPuck& pck)
 { cout << "GiftedPuck " << getColorName() << " copy constructor.\n"; }
 
 
+// HW3
+// factory function
+Puck* createPuck(const int r, const int h, const string& color)
+{
+    return new Puck(r, h, color);   // return ptr to dynamically allocated object in the Puck hierarchy
+}
+
+void gift(GiftedPuck& gp) {
+    cout << "Give GiftedPuck away." << endl;
+    gp.setIsGifted(true);
+};
+
+void receive(GiftedPuck& gp) {
+    cout << "Receive GiftedPuck back." << endl;
+    gp.setIsGifted(false);
+};
+
+// create Gift class (same as Lock but for my example)
+class Gift : private Uncopyable {   // prohibit copying in the Gift class: this RAII obj should not be copied
+private:
+    GiftedPuck& giftPtr;
+
+public:
+    Gift(GiftedPuck& ptr): giftPtr(ptr) {
+        gift(giftPtr);
+    }
+    ~Gift() {
+        receive(giftPtr);
+    }
+};
+
+
+
 int main()
 {
+    // HW1
+    cout << "\n~ HW1 ~\n";
     Player pl("Andrei", 10);
     Goalie gl("Bogdan", 1, "M");
 
+
+    // HW2
+    cout << "\n~~ HW2 ~~\n";
     Puck p1(5, 3, "black");
     Puck p2(p1);
     GiftedPuck gf1(10, 5, "pink", false);
     GiftedPuck gf2 = gf1;
+    GiftedPuck gf3(20, 10, "red", false);
+    GiftedPuck gf4(20, 10, "red", true);
+
+    cout << "---------------\n";
+    cout << "GiftedPuck no.1 is " << gf1.getIsGifted() << ".\n";
+    gf1 = gf3 = gf4;
+    cout << "GiftedPuck no.1 is " << gf1.getIsGifted() << ".\n";
+    cout << "---------------\n";
 
     p2 = p2;
     gf2 = gf2;
+    cout << "---------------\n";
+
+
+    // HW3
+    cout << "\n~~~ HW3 ~~~\n";
+    auto_ptr<Puck> autoPk1(createPuck(1, 1, "yellow_"));
+    cout << "Puck " << autoPk1->getColorName() << ".\n";
+    auto_ptr<Puck> autoPk2(autoPk1);
+    cout << "Puck "; //<< autoPk1->getColorName() << ".\n";    // now autoPk1 is null!!!
+
+    cout << "\n---------------\n";
+    shared_ptr<Puck> sharedPk1(createPuck(1, 1, "pink_"));
+    cout << "Shared count: " << sharedPk1.use_count() << endl;  // shows the instance number of sharedPk1
+    shared_ptr<Puck> sharedPk2(sharedPk1);
+    cout << "Shared count: " << sharedPk1.use_count() << endl;
+    sharedPk2->setColorName("neon_pink_");
+    cout << "Puck " << sharedPk1->getColorName() << ".\n";  // because sharedPk1 and sharedPk2 point to the same instance the color will change for both
+
+    cout << "---------------\n";
+    GiftedPuck gf5(27, 3, "blue", false);
+    cout << "GiftedPuck no.5 is " << gf5.getIsGifted() << ".\n";
+    Gift* giftPuck = new Gift(gf5);
+    cout << "GiftedPuck no.5 is " << gf5.getIsGifted() << ".\n";
+    delete giftPuck;
+    cout << "GiftedPuck no.5 is " << gf5.getIsGifted() << ".\n";
+    cout << endl;
 
     return 0;
 }

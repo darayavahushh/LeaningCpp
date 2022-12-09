@@ -17,7 +17,7 @@ endif()
 
 add_library(lib INTERFACE)
 
-add_executable(${myproject} hw3.cpp)
+add_executable(${myproject} hw.cpp)
 
 target_link_libraries(${myproject} PUBLIC lib)
 
